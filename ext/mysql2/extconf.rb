@@ -16,25 +16,41 @@ def add_ssl_defines(header)
   all_modes_found = %w(SSL_MODE_DISABLED SSL_MODE_PREFERRED SSL_MODE_REQUIRED SSL_MODE_VERIFY_CA SSL_MODE_VERIFY_IDENTITY).inject(true) do |m, ssl_mode|
     m && have_const(ssl_mode, header)
   end
-  $CFLAGS << ' -DFULL_SSL_MODE_SUPPORT' if all_modes_found
-  # if we only have ssl toggle (--ssl,--disable-ssl) from 5.7.3 to 5.7.10
-  has_no_support = all_modes_found ? false : !have_const('MYSQL_OPT_SSL_ENFORCE', header)
-  $CFLAGS << ' -DNO_SSL_MODE_SUPPORT' if has_no_support
+  if all_modes_found
+    $CFLAGS << ' -DFULL_SSL_MODE_SUPPORT'
+  else
+    # if we only have ssl toggle (--ssl,--disable-ssl) from 5.7.3 to 5.7.10
+    # and the verify server cert option. This is also the case for MariaDB.
+    has_verify_support  = have_const('MYSQL_OPT_SSL_VERIFY_SERVER_CERT', header)
+    has_enforce_support = have_const('MYSQL_OPT_SSL_ENFORCE', header)
+    $CFLAGS << ' -DNO_SSL_MODE_SUPPORT' if !has_verify_support && !has_enforce_support
+  end
+end
+
+# Homebrew openssl
+if RUBY_PLATFORM =~ /darwin/ && system("command -v brew")
+  $CFLAGS << " -Wno-compound-token-split-by-macro"
+  openssl_location = `brew --prefix openssl@1.1`.strip
+  if openssl_location
+    $LDFLAGS << " -L#{openssl_location}/lib"
+    $CPPFLAGS << " -I#{openssl_location}/include"
+  end
+
+  mysql_location = `brew --prefix mysql-client@5.7`.strip
+  if mysql_location
+    $LDFLAGS << " -L#{mysql_location}/lib"
+    $CPPFLAGS << " -I#{mysql_location}/include"
+  end
 end
 
 # 2.1+
 have_func('rb_absint_size')
 have_func('rb_absint_singlebit_p')
 
-# 2.0-only
-have_header('ruby/thread.h') && have_func('rb_thread_call_without_gvl', 'ruby/thread.h')
-
-# 1.9-only
-have_func('rb_thread_blocking_region')
+# Missing in RBX (https://github.com/rubinius/rubinius/issues/3771)
 have_func('rb_wait_for_single_fd')
-have_func('rb_hash_dup')
-have_func('rb_intern3')
-have_func('rb_big_cmp')
+
+have_func("rb_enc_interned_str", "ruby.h")
 
 # borrowed from mysqlplus
 # http://github.com/oldmoe/mysqlplus/blob/master/ext/extconf.rb
@@ -59,6 +75,7 @@ GLOB = "{#{dirs.join(',')}}/{mysql_config,mysql_config5,mariadb_config}"
 
 # If the user has provided a --with-mysql-dir argument, we must respect it or fail.
 inc, lib = dir_config('mysql')
+puts(['dir config mysql', inc, lib])
 if inc && lib
   # TODO: Remove when 2.0.0 is the minimum supported version
   # Ruby versions not incorporating the mkmf fix at
@@ -114,7 +131,15 @@ mysql_h = [prefix, 'mysql.h'].compact.join('/')
 add_ssl_defines(mysql_h)
 have_struct_member('MYSQL', 'net.vio', mysql_h)
 have_struct_member('MYSQL', 'net.pvio', mysql_h)
+
 have_const('MYSQL_ENABLE_CLEARTEXT_PLUGIN', mysql_h)
+# have_const('SERVER_QUERY_NO_GOOD_INDEX_USED', mysql_h)
+# have_const('SERVER_QUERY_NO_INDEX_USED', mysql_h)
+# have_const('SERVER_QUERY_WAS_SLOW', mysql_h)
+# have_const('MYSQL_OPTION_MULTI_STATEMENTS_ON', mysql_h)
+# have_const('MYSQL_OPTION_MULTI_STATEMENTS_OFF', mysql_h)
+
+have_type('my_bool', mysql_h)
 
 # This is our wishlist. We use whichever flags work on the host.
 # -Wall and -Wextra are included by default.
@@ -139,7 +164,7 @@ wishlist = [
 ]
 
 usable_flags = wishlist.select do |flag|
-  try_link('int main() {return 0;}',  "-Werror #{flag}")
+  try_link('int main() {return 0;}', "-Werror #{flag}")
 end
 
 $CFLAGS << ' ' << usable_flags.join(' ')

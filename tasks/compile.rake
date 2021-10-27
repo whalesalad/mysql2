@@ -4,7 +4,10 @@ load File.expand_path('../../mysql2.gemspec', __FILE__) unless defined? Mysql2::
 
 Rake::ExtensionTask.new("mysql2", Mysql2::GEMSPEC) do |ext|
   # put binaries into lib/mysql2/ or lib/mysql2/x.y/
+  # puts ['???', File.expand_path('../../', __FILE__)]
   ext.lib_dir = File.join 'lib', 'mysql2'
+
+  # puts ["lib dir", ext.lib_dir]
 
   # clean compiled extension
   CLEAN.include "#{ext.lib_dir}/*.#{RbConfig::CONFIG['DLEXT']}"
@@ -24,11 +27,12 @@ Rake::ExtensionTask.new("mysql2", Mysql2::GEMSPEC) do |ext|
 
     ext.cross_compiling do |spec|
       Rake::Task['lib/mysql2/mysql2.rb'].invoke
-      # vendor/libmysql.dll is invoked from extconf.rb
-      Rake::Task['vendor/README'].invoke
+      # # vendor/libmysql.dll is invoked from extconf.rb
+      # Rake::Task['vendor/README'].invoke
       spec.files << 'lib/mysql2/mysql2.rb'
-      spec.files << 'vendor/libmysql.dll'
-      spec.files << 'vendor/README'
+      # spec.files << 'vendor/libmysql.dll'
+      # spec.files << 'vendor/README'
+
       spec.post_install_message = <<-POST_INSTALL_MESSAGE
 
 ======================================================================================================
@@ -83,21 +87,4 @@ else
   if Rake::Task.tasks.map(&:name).include? 'cross'
     Rake::Task['cross'].prerequisites.unshift 'vendor:mysql:cross'
   end
-end
-
-desc "Build binary gems for Windows with rake-compiler-dock"
-task 'gem:windows' do
-  require 'rake_compiler_dock'
-  RakeCompilerDock.sh <<-EOT
-    bundle install
-    rake clean
-    rm vendor/libmysql.dll
-    rake cross native gem CROSS_PLATFORMS=x86-mingw32:x86-mswin32-60
-  EOT
-  RakeCompilerDock.sh <<-EOT
-    bundle install
-    rake clean
-    rm vendor/libmysql.dll
-    rake cross native gem CROSS_PLATFORMS=x64-mingw32
-  EOT
 end

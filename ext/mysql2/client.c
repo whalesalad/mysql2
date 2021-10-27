@@ -271,7 +271,7 @@ static VALUE invalidate_fd(int clientfd)
 static void *nogvl_close(void *ptr) {
   mysql_client_wrapper *wrapper = ptr;
 
-  if (!wrapper->closed) {
+  if (wrapper->initialized && !wrapper->closed) {
     mysql_close(wrapper->client);
     wrapper->closed = 1;
     wrapper->reconnect_enabled = 0;
@@ -326,8 +326,8 @@ static VALUE allocate(VALUE klass) {
   wrapper->reconnect_enabled = 0;
   wrapper->connect_timeout = 0;
   wrapper->initialized = 0; /* means that that the wrapper is initialized */
+  wrapper->closed = 1; /* will be set false after calling mysql_real_connect */
   wrapper->refcount = 1;
-  wrapper->closed = 0;
   wrapper->client = (MYSQL*)xmalloc(sizeof(MYSQL));
 
   return obj;
@@ -457,6 +457,7 @@ static VALUE rb_connect(VALUE self, VALUE user, VALUE pass, VALUE host, VALUE po
       rb_raise_mysql2_error(wrapper);
   }
 
+  wrapper->closed = 0;
   wrapper->server_version = mysql_get_server_version(wrapper->client);
   return self;
 }

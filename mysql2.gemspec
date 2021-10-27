@@ -1,16 +1,21 @@
 require File.expand_path('../lib/mysql2/version', __FILE__)
 
-Mysql2::GEMSPEC = Gem::Specification.new do |s|
-  s.name = 'mysql2'
-  s.version = Mysql2::VERSION
-  s.authors = ['Brian Lopez', 'Aaron Stone']
-  s.license = "MIT"
-  s.email = ['seniorlopez@gmail.com', 'aaron@serendipity.cx']
-  s.extensions = ["ext/mysql2/extconf.rb"]
-  s.homepage = 'http://github.com/brianmario/mysql2'
-  s.rdoc_options = ["--charset=UTF-8"]
-  s.summary = 'A simple, fast Mysql library for Ruby, binding to libmysql'
+Mysql2::GEMSPEC = Gem::Specification.new do |gem|
+  gem.name = 'mysql2'
+  gem.summary = 'A simple, fast Mysql library for Ruby, binding to libmysql'
+  gem.version = Mysql2::VERSION
 
-  s.files = `git ls-files README.md CHANGELOG.md LICENSE ext lib support`.split
-  s.test_files = `git ls-files spec examples`.split
+  gem.authors = ['Brian Lopez', 'Aaron Stone']
+  gem.license = "MIT"
+  gem.email = ['seniorlopez@gmail.com', 'aaron@serendipity.cx']
+  gem.homepage = 'http://github.com/brianmario/mysql2'
+  gem.rdoc_options = ["--charset=UTF-8"]
+
+  gem.extensions = ["ext/mysql2/extconf.rb"]
+  gem.files = Dir[
+    '*.md',
+    'ext/**/*',
+    'lib/**/*',
+    'support/*'
+  ]
 end
